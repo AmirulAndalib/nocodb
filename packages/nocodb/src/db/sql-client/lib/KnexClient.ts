@@ -3,7 +3,6 @@ import fs from 'fs';
 import { promisify } from 'util';
 import path from 'path';
 import { knex } from 'knex';
-import { T } from 'nc-help';
 import findIndex from 'lodash/findIndex';
 import find from 'lodash/find';
 import jsonfile from 'jsonfile';
@@ -14,6 +13,7 @@ import Debug from '../../util/Debug';
 import * as dataHelp from './data.helper';
 import SqlClient from './SqlClient';
 import type { Knex } from 'knex';
+import { T } from '~/utils';
 
 const evt = new Emit();
 
@@ -135,7 +135,7 @@ function columnCreate(sqlClient, table, colUiObj) {
     }
   }
 
-  // specifc type
+  // specific type
   if (colUiObj.dtx === 'specificType' && !skip) {
     // console.log(colUiObj);
     const precision =
@@ -3044,7 +3044,12 @@ class KnexClient extends SqlClient {
       if (/^\w+\(\)$/.test(value)) return value;
 
       // if value is a CURRENT_TIMESTAMP, return as is
-      if (/^CURRENT_TIMESTAMP[\w ]*$/.test(value.toUpperCase())) return value;
+      if (
+        /^\s*current_timestamp(?:\(\))?(?:\s+on\s+update\s+current_timestamp(?:\(\))?)?\s*$/i.test(
+          value,
+        )
+      )
+        return value;
 
       // if value wrapped in single/double quotes, then extract value and sanitise
       const m = value.match(/^(['"])(.*)\1$/);

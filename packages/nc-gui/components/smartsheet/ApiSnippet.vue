@@ -1,21 +1,5 @@
 <script setup lang="ts">
 import HTTPSnippet from 'httpsnippet'
-import {
-  ActiveViewInj,
-  MetaInj,
-  inject,
-  message,
-  ref,
-  storeToRefs,
-  useBase,
-  useCopy,
-  useGlobal,
-  useI18n,
-  useSmartsheetStoreOrThrow,
-  useVModel,
-  useViewData,
-  watch,
-} from '#imports'
 
 const props = defineProps<{
   modelValue: boolean
@@ -84,7 +68,7 @@ const selectedLangName = ref(langs[0].name)
 const apiUrl = computed(
   () =>
     new URL(
-      `/api/v1/db/data/noco/${base.value.id}/${meta.value?.title}/views/${view.value?.title}`,
+      `/api/v1/db/data/noco/${base.value.id}/${meta.value?.id}/views/${view.value?.id}`,
       (appInfo.value && appInfo.value.ncSiteUrl) || '/',
     ).href,
 )

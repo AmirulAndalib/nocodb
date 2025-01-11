@@ -114,6 +114,42 @@ const mysql2 = {
       ),
     };
   },
+  DAY: async ({ fn, knex, pt, colAlias }: MapFnArgs) => {
+    return {
+      builder: knex.raw(
+        `EXTRACT(DAY FROM ((${
+          (await fn(pt?.arguments[0])).builder
+        }) + 0)) ${colAlias}`,
+      ),
+    };
+  },
+  MONTH: async ({ fn, knex, pt, colAlias }: MapFnArgs) => {
+    return {
+      builder: knex.raw(
+        `EXTRACT(MONTH FROM ((${
+          (await fn(pt?.arguments[0])).builder
+        }) + 0)) ${colAlias}`,
+      ),
+    };
+  },
+  YEAR: async ({ fn, knex, pt, colAlias }: MapFnArgs) => {
+    return {
+      builder: knex.raw(
+        `EXTRACT(YEAR FROM ((${
+          (await fn(pt?.arguments[0])).builder
+        }) + 0)) ${colAlias}`,
+      ),
+    };
+  },
+  HOUR: async ({ fn, knex, pt, colAlias }: MapFnArgs) => {
+    return {
+      builder: knex.raw(
+        `EXTRACT(HOUR FROM ((${
+          (await fn(pt?.arguments[0])).builder
+        }) + 0)) ${colAlias}`,
+      ),
+    };
+  },
   REGEX_MATCH: async ({ fn, knex, pt, colAlias }: MapFnArgs) => {
     const source = (await fn(pt.arguments[0])).builder;
     const pattern = (await fn(pt.arguments[1])).builder;
@@ -125,7 +161,9 @@ const mysql2 = {
     const source = (await fn(pt.arguments[0])).builder;
     const pattern = (await fn(pt.arguments[1])).builder;
     return {
-      builder: knex.raw(`REGEXP_SUBSTR(${source}, ${pattern}) ${colAlias}`),
+      builder: knex.raw(
+        `REGEXP_SUBSTR(${source}, ${pattern}, 1, 1, 'c') ${colAlias}`,
+      ),
     };
   },
   REGEX_REPLACE: async ({ fn, knex, pt, colAlias }: MapFnArgs) => {
@@ -134,7 +172,7 @@ const mysql2 = {
     const replacement = (await fn(pt.arguments[2])).builder;
     return {
       builder: knex.raw(
-        `REGEXP_REPLACE(${source}, ${pattern}, ${replacement}) ${colAlias}`,
+        `REGEXP_REPLACE(${source}, ${pattern}, ${replacement}, 1, 0, 'c') ${colAlias}`,
       ),
     };
   },
@@ -157,6 +195,28 @@ const mysql2 = {
   WHEN LENGTH(REGEXP_REPLACE(${value}, '[^%]', '')) > 0 THEN POW(-1, LENGTH(REGEXP_REPLACE(${value}, '[^-]',''))) * (REGEXP_REPLACE(${value}, '[^0-9.]+', '')) / 100
   ELSE POW(-1, LENGTH(REGEXP_REPLACE(${value}, '[^-]', ''))) * (REGEXP_REPLACE(${value}, '[^0-9.]+', ''))
 END) ${colAlias}`,
+      ),
+    };
+  },
+  STRING: async (args: MapFnArgs) => {
+    return {
+      builder: args.knex.raw(
+        `CAST(${(await args.fn(args.pt.arguments[0])).builder} AS CHAR) ${
+          args.colAlias
+        }`,
+      ),
+    };
+  },
+  JSON_EXTRACT: async ({ fn, knex, pt, colAlias }: MapFnArgs) => {
+    return {
+      builder: knex.raw(
+        `CASE WHEN JSON_VALID(${
+          (await fn(pt.arguments[0])).builder
+        }) = 1 THEN JSON_EXTRACT(${
+          (await fn(pt.arguments[0])).builder
+        }, CONCAT('$', ${
+          (await fn(pt.arguments[1])).builder
+        })) ELSE NULL END${colAlias}`,
       ),
     };
   },

@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import type { VNodeRef } from '@vue/runtime-core'
-import { EditColumnInj, EditModeInj, IsExpandedFormOpenInj, inject, useVModel } from '#imports'
 
 interface Props {
   // when we set a number, then it is number type
@@ -40,29 +39,33 @@ const vModel = computed({
 
 const isExpandedFormOpen = inject(IsExpandedFormOpenInj, ref(false))!
 
-const focus: VNodeRef = (el) => !isExpandedFormOpen.value && !isEditColumn.value && (el as HTMLInputElement)?.focus()
+const isForm = inject(IsFormInj)!
+
+const focus: VNodeRef = (el) =>
+  !isExpandedFormOpen.value && !isEditColumn.value && !isForm.value && (el as HTMLInputElement)?.focus()
 </script>
 
 <template>
+  <!-- eslint-disable vue/use-v-on-exact -->
   <input
     v-if="editEnabled"
     :ref="focus"
     v-model="vModel"
-    class="outline-none px-1 border-none w-full h-full text-sm"
+    class="nc-cell-field outline-none px-1 border-none w-full h-full"
     type="number"
     step="0.1"
-    :placeholder="isEditColumn ? $t('labels.optional') : ''"
     @blur="editEnabled = false"
     @keydown.down.stop
     @keydown.left.stop
     @keydown.right.stop
     @keydown.up.stop
     @keydown.delete.stop
+    @keydown.alt.stop
     @selectstart.capture.stop
     @mousedown.stop
   />
-  <span v-else-if="vModel === null && showNull" class="nc-null uppercase">{{ $t('general.null') }}</span>
-  <span v-else class="text-sm">{{ vModel }}</span>
+  <span v-else-if="vModel === null && showNull" class="nc-cell-field nc-null uppercase">{{ $t('general.null') }}</span>
+  <span v-else class="nc-cell-field">{{ vModel }}</span>
 </template>
 
 <style scoped lang="scss">

@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import type { VNodeRef } from '@vue/runtime-core'
 import isMobilePhone from 'validator/lib/isMobilePhone'
-import { EditColumnInj, EditModeInj, IsExpandedFormOpenInj, IsSurveyFormInj, computed, inject } from '#imports'
 
 interface Props {
   modelValue: string | null | number | undefined
@@ -17,32 +16,35 @@ const { showNull } = useGlobal()
 
 const { t } = useI18n()
 
-const editEnabled = inject(EditModeInj)!
+const editEnabled = inject(EditModeInj, ref(false))
 
 const isEditColumn = inject(EditColumnInj, ref(false))
 
 const column = inject(ColumnInj)!
 
+const isForm = inject(IsFormInj)!
+
+const readOnly = inject(ReadonlyInj, ref(false))
+
 // Used in the logic of when to display error since we are not storing the phone if it's not valid
 const localState = ref(value)
-
-const isSurveyForm = inject(IsSurveyFormInj, ref(false))
 
 const vModel = computed({
   get: () => value,
   set: (val) => {
     localState.value = val
-    if (!parseProp(column.value.meta)?.validate || (val && isMobilePhone(val)) || !val || isSurveyForm.value) {
+    if (!parseProp(column.value.meta)?.validate || (val && isMobilePhone(val)) || !val || isForm.value) {
       emit('update:modelValue', val)
     }
   },
 })
 
-const validEmail = computed(() => vModel.value && isMobilePhone(vModel.value))
+const validPhoneNumber = computed(() => vModel.value && isMobilePhone(vModel.value))
 
 const isExpandedFormOpen = inject(IsExpandedFormOpenInj, ref(false))!
 
-const focus: VNodeRef = (el) => !isExpandedFormOpen.value && !isEditColumn.value && (el as HTMLInputElement)?.focus()
+const focus: VNodeRef = (el) =>
+  !isExpandedFormOpen.value && !isEditColumn.value && !isForm.value && (el as HTMLInputElement)?.focus()
 
 watch(
   () => editEnabled.value,
@@ -58,33 +60,35 @@ watch(
 </script>
 
 <template>
+  <!-- eslint-disable vue/use-v-on-exact -->
   <input
-    v-if="editEnabled"
+    v-if="!readOnly && editEnabled"
     :ref="focus"
     v-model="vModel"
-    class="w-full outline-none text-sm px-1 py-2"
-    :placeholder="isEditColumn ? $t('labels.optional') : ''"
+    class="nc-cell-field w-full outline-none py-1"
     @blur="editEnabled = false"
     @keydown.down.stop
     @keydown.left.stop
     @keydown.right.stop
     @keydown.up.stop
     @keydown.delete.stop
+    @keydown.alt.stop
     @selectstart.capture.stop
     @mousedown.stop
   />
 
-  <span v-else-if="vModel === null && showNull" class="nc-null uppercase">{{ $t('general.null') }}</span>
+  <span v-else-if="vModel === null && showNull" class="nc-cell-field nc-null uppercase">{{ $t('general.null') }}</span>
 
   <a
-    v-else-if="validEmail"
-    class="text-sm underline hover:opacity-75"
+    v-else-if="validPhoneNumber"
+    class="py-1 underline inline-block nc-cell-field-link"
     :href="`tel:${vModel}`"
     target="_blank"
     rel="noopener noreferrer"
+    :tabindex="readOnly ? -1 : 0"
   >
-    <LazyCellClampedText :value="vModel" :lines="rowHeight" />
+    <LazyCellClampedText :value="vModel" :lines="rowHeight" class="nc-cell-field" />
   </a>
 
-  <LazyCellClampedText v-else :value="vModel" :lines="rowHeight" />
+  <LazyCellClampedText v-else :value="vModel" :lines="rowHeight" class="nc-cell-field" />
 </template>

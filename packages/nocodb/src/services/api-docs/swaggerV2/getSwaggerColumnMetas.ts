@@ -1,14 +1,16 @@
 import { UITypes } from 'nocodb-sdk';
 import type { Base, Column, LinkToAnotherRecordColumn } from '~/models';
+import type { NcContext } from '~/interface/config';
 import SwaggerTypes from '~/db/sql-mgr/code/routers/xc-ts/SwaggerTypes';
 import Noco from '~/Noco';
 
 export default async (
+  context: NcContext,
   columns: Column[],
   base: Base,
   ncMeta = Noco.ncMeta,
 ): Promise<SwaggerColumn[]> => {
-  const dbType = await base.getBases().then((b) => b?.[0]?.type);
+  const dbType = await base.getSources().then((b) => b?.[0]?.type);
   return Promise.all(
     columns.map(async (c) => {
       const field: SwaggerColumn = {
@@ -22,10 +24,11 @@ export default async (
         case UITypes.LinkToAnotherRecord:
           {
             const colOpt = await c.getColOptions<LinkToAnotherRecordColumn>(
+              context,
               ncMeta,
             );
             if (colOpt) {
-              const relTable = await colOpt.getRelatedTable(ncMeta);
+              const relTable = await colOpt.getRelatedTable(context, ncMeta);
               field.type = undefined;
               field.$ref = `#/components/schemas/${relTable.title}Request`;
             }
@@ -44,6 +47,14 @@ export default async (
           field.items = {
             $ref: `#/components/schemas/Attachment`,
           };
+          break;
+        case UITypes.LastModifiedTime:
+        case UITypes.CreatedTime:
+          field.type = 'string';
+          break;
+        case UITypes.LastModifiedBy:
+        case UITypes.CreatedBy:
+          field.type = 'object';
           break;
         default:
           field.virtual = false;

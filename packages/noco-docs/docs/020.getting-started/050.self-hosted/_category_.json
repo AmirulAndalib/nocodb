@@ -1,5 +1,8 @@
 {
-  "label": "In Open Source",
+  "label": "Self Hosting",
   "collapsible": true,
-  "collapsed": false
+  "collapsed": false,
+  "link": {
+    "type": "generated-index"
+  }
 }

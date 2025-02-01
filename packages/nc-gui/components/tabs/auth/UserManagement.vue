@@ -1,23 +1,6 @@
 <script setup lang="ts">
 import { OrgUserRoles, RoleColors } from 'nocodb-sdk'
 import type { ProjectUserReqType, RequestParams } from 'nocodb-sdk'
-import {
-  extractSdkResponseErrorMsg,
-  iconMap,
-  message,
-  onBeforeMount,
-  ref,
-  storeToRefs,
-  useApi,
-  useBase,
-  useCopy,
-  useDashboard,
-  useI18n,
-  useNuxtApp,
-  useRoles,
-  watchDebounced,
-} from '#imports'
-import type { User } from '#imports'
 
 const { t } = useI18n()
 
@@ -32,6 +15,8 @@ const { copy } = useCopy()
 const { isUIAllowed } = useRoles()
 
 const { dashboardUrl } = useDashboard()
+
+const { clearBasesUser } = useBases()
 
 const users = ref<null | User[]>(null)
 
@@ -83,6 +68,9 @@ const inviteUser = async (user: User) => {
     }
 
     await api.auth.baseUserAdd(base.value.id, user as ProjectUserReqType)
+
+    // clear bases user state
+    clearBasesUser()
 
     // Successfully added user to base
     message.success(t('msg.success.userAddedToProject'))

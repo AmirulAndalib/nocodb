@@ -26,7 +26,7 @@ const serverInit = async () => {
 
 const isFirstTimeRun = () => !server;
 
-export default async function (forceReset = false) {
+export default async function (forceReset = false, roles = 'editor') {
   const { default: TestDbMngr } = await import('../TestDbMngr');
 
   if (isFirstTimeRun()) {
@@ -39,9 +39,11 @@ export default async function (forceReset = false) {
   // }
   await cleanupMeta();
 
-  const { token } = await createUser({ app: server }, { roles: 'editor' });
+  const { token, user } = await createUser({ app: server }, { roles });
 
-  const extra: any = {};
+  const extra: {
+    fk_workspace_id?: string;
+  } = {};
 
   // create ws for ee
   if (process.env.EE === 'true') {
@@ -58,9 +60,18 @@ export default async function (forceReset = false) {
     extra.fk_workspace_id = ws.body.id;
   }
 
+  const xc_token = (
+    await request(server)
+      .post('/api/v1/tokens/')
+      .set('xc-auth', token)
+      .expect(200)
+  ).body.token;
+
   return {
     app: server,
     token,
+    xc_token,
+    user,
     dbConfig: TestDbMngr.dbConfig,
     sakilaDbConfig: TestDbMngr.getSakilaDbConfig(),
     ...extra,

@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type Source from '~/models/Source';
 import {
   defaultConnectionConfig,
@@ -8,6 +9,8 @@ import { XKnex } from '~/db/CustomKnex';
 import Noco from '~/Noco';
 
 export default class NcConnectionMgrv2 {
+  private static logger = new Logger('NcConnectionMgrv2');
+
   protected static connectionRefs: {
     [baseId: string]: {
       [sourceId: string]: XKnex;
@@ -22,20 +25,6 @@ export default class NcConnectionMgrv2 {
     }
   }
 
-  // Todo: Should await on connection destroy
-  public static delete(source: Source) {
-    // todo: ignore meta bases
-    if (this.connectionRefs?.[source.base_id]?.[source.id]) {
-      try {
-        const conn = this.connectionRefs?.[source.base_id]?.[source.id];
-        conn.destroy();
-        delete this.connectionRefs?.[source.base_id][source.id];
-      } catch (e) {
-        console.log(e);
-      }
-    }
-  }
-
   public static async deleteAwait(source: Source) {
     // todo: ignore meta bases
     if (this.connectionRefs?.[source.base_id]?.[source.id]) {
@@ -44,9 +33,31 @@ export default class NcConnectionMgrv2 {
         await conn.destroy();
         delete this.connectionRefs?.[source.base_id][source.id];
       } catch (e) {
-        console.log(e);
+        this.logger.error({
+          error: e,
+          details: 'Error deleting connection ref',
+        });
       }
     }
+  }
+
+  public static async deleteConnectionRef(sourceId: string) {
+    let deleted = false;
+    for (const baseId in this.connectionRefs) {
+      try {
+        if (this.connectionRefs[baseId][sourceId]) {
+          await this.connectionRefs[baseId][sourceId].destroy();
+          delete this.connectionRefs[baseId][sourceId];
+          deleted = true;
+        }
+      } catch (e) {
+        this.logger.error({
+          error: e,
+          details: 'Error deleting connection ref',
+        });
+      }
+    }
+    return deleted;
   }
 
   public static async get(source: Source): Promise<XKnex> {
@@ -69,12 +80,16 @@ export default class NcConnectionMgrv2 {
         typeCast(field, next) {
           const res = next();
 
-          // mysql `bit` datatype returns value as Buffer, convert it to integer number
-          if (field.type == 'BIT' && res && res instanceof Buffer) {
-            return parseInt(
-              [...res].map((v) => ('00' + v.toString(16)).slice(-2)).join(''),
-              16,
-            );
+          // mysql - convert all other buffer values to hex string
+          // if `bit` datatype then convert it to integer number
+          if (res && res instanceof Buffer) {
+            const hex = [...res]
+              .map((v) => ('00' + v.toString(16)).slice(-2))
+              .join('');
+            if (field.type == 'BIT') {
+              return parseInt(hex, 16);
+            }
+            return hex;
           }
 
           // mysql `decimal` datatype returns value as string, convert it to float number
@@ -95,5 +110,9 @@ export default class NcConnectionMgrv2 {
       knex,
       ...(await source.getConnectionConfig()),
     });
+  }
+
+  public static async getDataConfig?() {
+    return Noco.getConfig()?.meta?.db;
   }
 }

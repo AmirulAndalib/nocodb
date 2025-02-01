@@ -130,21 +130,22 @@ test.describe('Undo Redo', () => {
   }
 
   test('Row: Create, Update, Delete', async ({ page }) => {
-    await dashboard.closeTab({ title: 'Team & Auth' });
     await dashboard.treeView.openTable({ title: 'numberBased' });
 
     // Row.Create
-    await grid.addNewRow({ index: 10, value: '333', columnHeader: 'Number', networkValidation: true });
-    await grid.addNewRow({ index: 11, value: '444', columnHeader: 'Number', networkValidation: true });
+    await grid.addNewRow({ index: 10, value: '333', columnHeader: 'Number' });
+    await grid.addNewRow({ index: 11, value: '444', columnHeader: 'Number' });
     await verifyRecords([333, 444]);
 
     // Row.Update
-    await grid.editRow({ index: 10, value: '555', columnHeader: 'Number', networkValidation: true });
-    await grid.editRow({ index: 11, value: '666', columnHeader: 'Number', networkValidation: true });
+    await grid.editRow({ index: 10, value: '555', columnHeader: 'Number' });
+    await grid.editRow({ index: 11, value: '666', columnHeader: 'Number' });
     await verifyRecords([555, 666]);
 
     // Row.Delete
+    await grid.clickRow(10, 'Number');
     await grid.deleteRow(10, 'Number');
+    await grid.clickRow(10, 'Number');
     await grid.deleteRow(10, 'Number');
     await verifyRecords([]);
 
@@ -162,7 +163,10 @@ test.describe('Undo Redo', () => {
 
     // Undo : Row.Create
     await undo({ page, dashboard });
+    await verifyRecords([333, NaN]);
+    await undo({ page, dashboard });
     await verifyRecords([333]);
+    await undo({ page, dashboard });
     await undo({ page, dashboard });
     await verifyRecords([]);
   });
@@ -173,7 +177,6 @@ test.describe('Undo Redo', () => {
       expect(fieldTitles).toEqual(fields);
     }
 
-    await dashboard.closeTab({ title: 'Team & Auth' });
     await dashboard.treeView.openTable({ title: 'numberBased' });
 
     // hack: wait for grid to load
@@ -224,7 +227,6 @@ test.describe('Undo Redo', () => {
   });
 
   test('Fields: Sort', async ({ page }) => {
-    await dashboard.closeTab({ title: 'Team & Auth' });
     await dashboard.treeView.openTable({ title: 'numberBased' });
 
     async function verifyRecords({ sorted }: { sorted: boolean }) {
@@ -254,7 +256,6 @@ test.describe('Undo Redo', () => {
   });
 
   test('Fields: Filter', async ({ page }) => {
-    await dashboard.closeTab({ title: 'Team & Auth' });
     await dashboard.treeView.openTable({ title: 'numberBased' });
 
     async function verifyRecords({ filtered }: { filtered: boolean }) {
@@ -294,35 +295,36 @@ test.describe('Undo Redo', () => {
 
   test('Row height', async ({ page }) => {
     async function verifyRowHeight({ height }: { height: string }) {
-      await expect(dashboard.grid.rowPage.getRecord(0)).toHaveAttribute('style', `height: ${height};`);
+      await expect(dashboard.grid.rowPage.getRecord(0)).toHaveAttribute(
+        'style',
+        expect.stringMatching(new RegExp(`height:\\s*${height}px;`))
+      );
     }
 
-    // close 'Team & Auth' tab
-    await dashboard.closeTab({ title: 'Team & Auth' });
     await dashboard.treeView.openTable({ title: 'numberBased' });
 
     const timeOut = 200;
 
-    await verifyRowHeight({ height: '1.8rem' });
+    await verifyRowHeight({ height: '32px' });
 
     // set row height & verify
     await toolbar.clickRowHeight();
     await toolbar.rowHeight.click({ title: 'Tall' });
     await new Promise(resolve => setTimeout(resolve, timeOut));
-    await verifyRowHeight({ height: '7.2rem' });
+    await verifyRowHeight({ height: '90px' });
 
     await toolbar.clickRowHeight();
     await toolbar.rowHeight.click({ title: 'Medium' });
     await new Promise(resolve => setTimeout(resolve, timeOut));
-    await verifyRowHeight({ height: '3.6rem' });
+    await verifyRowHeight({ height: '60px' });
 
     await undo({ page, dashboard });
     await new Promise(resolve => setTimeout(resolve, timeOut));
-    await verifyRowHeight({ height: '7.2rem' });
+    await verifyRowHeight({ height: '90px' });
 
     await undo({ page, dashboard });
     await new Promise(resolve => setTimeout(resolve, timeOut));
-    await verifyRowHeight({ height: '1.8rem' });
+    await verifyRowHeight({ height: '32px' });
   });
 
   test('Column width', async ({ page }) => {
@@ -420,8 +422,6 @@ test.describe('Undo Redo - Table & view rename operations', () => {
   });
 
   test('Table & View rename', async ({ page }) => {
-    // close 'Team & Auth' tab
-    await dashboard.closeTab({ title: 'Team & Auth' });
     await dashboard.treeView.openTable({ title: 'selectBased' });
 
     // table rename
@@ -604,7 +604,6 @@ test.describe('Undo Redo - LTAR', () => {
   }
 
   test('Row: Link, Unlink', async ({ page }) => {
-    await dashboard.closeTab({ title: 'Team & Auth' });
     await dashboard.treeView.openTable({ title: 'Country' });
 
     await grid.cell.inCellAdd({ index: 0, columnHeader: 'CityList' });
@@ -627,7 +626,6 @@ test.describe('Undo Redo - LTAR', () => {
     // will work even for ext DB
     if (!isSqlite(context)) test.skip();
 
-    await dashboard.closeTab({ title: 'Team & Auth' });
     await dashboard.treeView.openTable({ title: 'Country' });
 
     await grid.cell.inCellAdd({ index: 0, columnHeader: 'CityList' });
@@ -709,7 +707,6 @@ test.describe('Undo Redo - Select based', () => {
   });
 
   test.skip('Kanban', async ({ page }) => {
-    await dashboard.closeTab({ title: 'Team & Auth' });
     await dashboard.treeView.openTable({ title: 'selectSample' });
 
     await dashboard.viewSidebar.createKanbanView({

@@ -1,4 +1,4 @@
-import { Locator, Page } from '@playwright/test';
+import { expect, Locator, Page } from '@playwright/test';
 import { readFileSync } from 'fs';
 
 type ResponseSelector = (json: any) => boolean;
@@ -14,6 +14,13 @@ export default abstract class BasePage {
 
   async verifyToast({ message }: { message: string }) {
     await this.rootPage.locator('.ant-message .ant-message-notice-content', { hasText: message }).last().isVisible();
+
+    // ensure that the toast is removed from the DOM
+    // await this.rootPage.waitForSelector('.ant-message .ant-message-notice-content', { state: 'hidden' });
+  }
+
+  async verifyErrorMessage({ message }: { message: RegExp }) {
+    await expect(this.get().locator('.ant-form-item-explain-error', { hasText: message })).toBeVisible();
   }
 
   async waitForResponse({
@@ -24,18 +31,22 @@ export default abstract class BasePage {
     // A function that takes the response body and returns true if the response is the one we are looking for
     responseJsonMatcher,
     timeout,
+    responseStatusCodeToMatch = 200,
   }: {
     uiAction: () => Promise<any>;
-    requestUrlPathToMatch: string;
+    requestUrlPathToMatch: string | RegExp;
     httpMethodsToMatch?: string[];
     responseJsonMatcher?: ResponseSelector;
     timeout?: number;
+    responseStatusCodeToMatch?: number;
   }) {
     const [res] = await Promise.all([
       this.rootPage.waitForResponse(
         res =>
-          res.url().includes(requestUrlPathToMatch) &&
-          res.status() === 200 &&
+          (requestUrlPathToMatch instanceof RegExp
+            ? requestUrlPathToMatch.test(res.url())
+            : res.url().includes(requestUrlPathToMatch)) &&
+          res.status() === responseStatusCodeToMatch &&
           httpMethodsToMatch.includes(res.request().method()),
         timeout ? { timeout } : undefined
       ),
@@ -46,7 +57,7 @@ export default abstract class BasePage {
     let isResJsonMatched = true;
     if (responseJsonMatcher) {
       try {
-        isResJsonMatched = responseJsonMatcher(res.json());
+        isResJsonMatched = responseJsonMatcher(await res.json());
       } catch {
         isResJsonMatched = false;
       }

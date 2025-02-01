@@ -1,4 +1,5 @@
 import { expect, Locator } from '@playwright/test';
+import { UITypes } from 'nocodb-sdk';
 import { GridPage } from '../../Grid';
 import BasePage from '../../../Base';
 import { AttachmentCellPageObject } from './AttachmentCell';
@@ -13,6 +14,9 @@ import { getTextExcludeIconText } from '../../../../tests/utils/general';
 import { YearCellPageObject } from './YearCell';
 import { TimeCellPageObject } from './TimeCell';
 import { GroupPageObject } from '../../Grid/Group';
+import { UserOptionCellPageObject } from './UserOptionCell';
+import { SurveyFormPage } from '../../SurveyForm';
+import { ButtonCellPageObject } from './ButtonCell';
 
 export interface CellProps {
   indexMap?: Array<number>;
@@ -21,7 +25,7 @@ export interface CellProps {
 }
 
 export class CellPageObject extends BasePage {
-  readonly parent: GridPage | SharedFormPage | GroupPageObject;
+  readonly parent: GridPage | SharedFormPage | SurveyFormPage | GroupPageObject;
   readonly selectOption: SelectOptionCellPageObject;
   readonly attachment: AttachmentCellPageObject;
   readonly checkbox: CheckboxCellPageObject;
@@ -31,8 +35,10 @@ export class CellPageObject extends BasePage {
   readonly geoData: GeoDataCellPageObject;
   readonly date: DateCellPageObject;
   readonly dateTime: DateTimeCellPageObject;
+  readonly userOption: UserOptionCellPageObject;
+  readonly button: ButtonCellPageObject;
 
-  constructor(parent: GridPage | SharedFormPage | GroupPageObject) {
+  constructor(parent: GridPage | SharedFormPage | SurveyFormPage | GroupPageObject) {
     super(parent.rootPage);
     this.parent = parent;
     this.selectOption = new SelectOptionCellPageObject(this);
@@ -44,11 +50,18 @@ export class CellPageObject extends BasePage {
     this.geoData = new GeoDataCellPageObject(this);
     this.date = new DateCellPageObject(this);
     this.dateTime = new DateTimeCellPageObject(this);
+    this.userOption = new UserOptionCellPageObject(this);
+    this.button = new ButtonCellPageObject(this);
   }
 
   get({ indexMap, index, columnHeader }: CellProps): Locator {
     if (this.parent instanceof SharedFormPage) {
       return this.parent.get().locator(`[data-testid="nc-form-input-cell-${columnHeader}"]`).first();
+    } else if (this.parent instanceof SurveyFormPage) {
+      return this.parent
+        .get()
+        .locator(`[data-testid="nc-survey-form__input-${columnHeader.replace(' ', '')}"]`)
+        .first();
     } else if (this.parent instanceof GridPage) {
       return this.parent.get().locator(`td[data-testid="cell-${columnHeader}-${index}"]`).first();
     } else {
@@ -65,7 +78,7 @@ export class CellPageObject extends BasePage {
     return await this.get({ index, columnHeader }).dblclick();
   }
 
-  async fillText({ index, columnHeader, text }: CellProps & { text: string }) {
+  async fillText({ index, columnHeader, text, type }: CellProps & { text: string; type?: UITypes }) {
     await this.dblclick({
       index,
       columnHeader,
@@ -81,6 +94,10 @@ export class CellPageObject extends BasePage {
 
     if (await isInputBox()) {
       await this.get({ index, columnHeader }).locator('input').fill(text);
+
+      if (type && [UITypes.Date, UITypes.Time, UITypes.Year, UITypes.DateTime].includes(type)) {
+        await this.rootPage.keyboard.press('Enter');
+      }
     } else {
       await this.get({ index, columnHeader }).locator('textarea').fill(text);
     }
@@ -129,6 +146,11 @@ export class CellPageObject extends BasePage {
       if (!(this.parent instanceof SharedFormPage)) {
         await this.rootPage.locator(`td[data-testid="cell-${columnHeader}-${index}"]`).waitFor({ state: 'visible' });
       }
+
+      await this.get({
+        index,
+        columnHeader,
+      }).waitFor({ state: 'visible' });
 
       await this.get({
         index,
@@ -197,7 +219,7 @@ export class CellPageObject extends BasePage {
           const cell = await this.get({
             index,
             columnHeader,
-          }).locator('input');
+          }).locator('.nc-date-picker');
           return await cell.getAttribute('title');
         })
         .toEqual(expectedValue);
@@ -344,7 +366,9 @@ export class CellPageObject extends BasePage {
         await expect.poll(() => this.rootPage.locator('.ant-card:visible').count()).toBe(count);
 
         // close child list
-        await this.rootPage.locator('.nc-modal-child-list').locator('.nc-close-btn').last().click();
+        // await this.rootPage.locator('.nc-modal-child-list').locator('.nc-close-btn').last().click();
+        await this.rootPage.locator('.nc-modal-child-list').getByTestId('nc-link-count-info').click();
+        await this.rootPage.keyboard.press('Escape');
       }
     }
   }
@@ -370,11 +394,16 @@ export class CellPageObject extends BasePage {
 
       await this.waitForResponse({
         uiAction: () =>
-          this.rootPage.locator(`[data-testid="nc-child-list-item"]`).last().click({ force: true, timeout: 3000 }),
+          this.rootPage
+            .locator(`[data-testid="nc-child-list-item"]`)
+            .last()
+            .locator('button.nc-list-item-link-unlink-btn')
+            .click({ force: true, timeout: 3000 }),
         requestUrlPathToMatch: '/api/v1/db/data/noco',
         httpMethodsToMatch: ['GET'],
       });
 
+      await this.rootPage.keyboard.press('Escape');
       await this.rootPage.keyboard.press('Escape');
     }
   }
@@ -407,6 +436,7 @@ export class CellPageObject extends BasePage {
   }
 
   async copyCellToClipboard({ index, columnHeader }: CellProps, ...clickOptions: Parameters<Locator['click']>) {
+    if (this.parent instanceof GridPage) await this.parent.renderColumn(columnHeader);
     await this.get({ index, columnHeader }).scrollIntoViewIfNeeded();
     await this.get({ index, columnHeader }).click(...clickOptions);
     await (await this.get({ index, columnHeader }).elementHandle()).waitForElementState('stable');
